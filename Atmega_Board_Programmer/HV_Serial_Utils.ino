@@ -172,9 +172,24 @@ void commitPage (unsigned long addr, bool showMessage)
   else
     showProgress ();
 
-  addr >>= 1;  // turn into word address
+  // addr >>= 1;  // turn into word address
   
-  HVtransfer (SII_LOAD_ADDRESS_HIGH, addr >> 8);
+  addr >>= 9; // instead of 2 times rightshifting by 1 and 8 bits like in orignial code
+
+    /* 
+      This Instruction #1 has to be executed only every 256 words (512 bytes) (see table Table 20-16 "Load Flash High Address and Program Page")
+      according to the "operation remarks" in the datasheet of the "ATTinyx5"series for this command
+      So for an ATTiny85 for example with a page size of 32 words, the Instruction #1 only has to be executed once every 8 commits respectively when addr increments.
+    */
+  static uint16_t temp = 0xFFFF;
+  if ( addr != temp ){ 
+    
+    HVtransfer (SII_LOAD_ADDRESS_HIGH, addr); // Instruction #1, Address was "converted" in 256 words (512 bytes) large flash memory segments by "addr >>= 9"
+    // HVtransfer (SII_LOAD_ADDRESS_HIGH, addr >> 8); 
+    temp = addr;
+  
+  }
+  
   HVtransfer (SII_WRITE_LOW_BYTE, 0);
   HVtransfer (SII_WRITE_LOW_BYTE | SII_OR_MASK, 0);
   
